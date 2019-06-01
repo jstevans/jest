@@ -6,7 +6,7 @@
  */
 
 import {Config} from '@jest/types';
-import {SerializableError} from '@jest/test-result';
+import {TestResult, SerializableError} from '@jest/test-result';
 import exit from 'exit';
 import throat from 'throat';
 import Worker from 'jest-worker';
@@ -22,8 +22,12 @@ import {
   TestWatcher,
   WatcherState,
 } from './types';
+import wastenot from 'waste-not/dist/waste-not/lib/index';
+import {Property} from 'waste-not/dist/cache/lib/types';
+import * as path from 'path';
 
 const TEST_WORKER_PATH = require.resolve('./testWorker');
+const CACHE_PROPERTY_KEY = 'JEST_TEST_RESULTS';
 
 interface WorkerInterface extends Worker {
   worker: typeof worker;
@@ -51,14 +55,31 @@ class TestRunner {
     onFailure: OnTestFailure,
     options: TestRunnerOptions,
   ): Promise<void> {
+    const {wasteNotConfig: wnConfig} = this._globalConfig;
+    const resultCache = await (wnConfig ? wastenot(wnConfig) : wastenot());
+
+    const getCachedResults = (filePath: string) => {
+      return resultCache(path.relative(process.cwd(), path.resolve(filePath)))<
+        TestResult
+      >(CACHE_PROPERTY_KEY, {transitive: true});
+    };
+
     return await (options.serial
-      ? this._createInBandTestRun(tests, watcher, onStart, onResult, onFailure)
+      ? this._createInBandTestRun(
+          tests,
+          watcher,
+          onStart,
+          onResult,
+          onFailure,
+          getCachedResults,
+        )
       : this._createParallelTestRun(
           tests,
           watcher,
           onStart,
           onResult,
           onFailure,
+          getCachedResults,
         ));
   }
 
@@ -68,6 +89,7 @@ class TestRunner {
     onStart: OnTestStart,
     onResult: OnTestSuccess,
     onFailure: OnTestFailure,
+    resultCache: (path: string) => Property<TestResult>,
   ) {
     process.env.JEST_WORKER_ID = '1';
     const mutex = throat(1);
@@ -81,13 +103,30 @@ class TestRunner {
               }
 
               await onStart(test);
+              const resultsCacheEntry = resultCache(test.path);
+
+              const useCachedResult =
+                resultsCacheEntry.read &&
+                (resultsCacheEntry.isDirty && !resultsCacheEntry.isDirty());
+
+              const cachedResults =
+                useCachedResult && resultsCacheEntry.read!();
+              if (cachedResults) {
+                return Promise.resolve(cachedResults);
+              }
+
               return runTest(
                 test.path,
                 this._globalConfig,
                 test.context.config,
                 test.context.resolver,
                 this._context,
-              );
+              ).then(result => {
+                if (resultsCacheEntry.write) {
+                  resultsCacheEntry.write(result);
+                }
+                return result;
+              });
             })
             .then(result => onResult(test, result))
             .catch(err => onFailure(test, err)),
@@ -102,6 +141,7 @@ class TestRunner {
     onStart: OnTestStart,
     onResult: OnTestSuccess,
     onFailure: OnTestFailure,
+    resultCache: (path: string) => Property<TestResult>,
   ) {
     const worker = new Worker(TEST_WORKER_PATH, {
       exposedMethods: ['worker'],
@@ -123,24 +163,41 @@ class TestRunner {
           return Promise.reject();
         }
 
+        const resultsCacheEntry = resultCache(test.path);
+
+        const useCachedResult =
+          resultsCacheEntry.read &&
+          (!resultsCacheEntry.isDirty || !resultsCacheEntry.isDirty());
+
+        const cachedResults = useCachedResult && resultsCacheEntry.read!();
+        if (cachedResults) {
+          return cachedResults;
+        }
+
         await onStart(test);
 
-        return worker.worker({
-          config: test.context.config,
-          context: {
-            ...this._context,
-            changedFiles:
-              this._context.changedFiles &&
-              Array.from(this._context.changedFiles),
-          },
-          globalConfig: this._globalConfig,
-          path: test.path,
-          serializableModuleMap: watcher.isWatchMode()
-            ? test.context.moduleMap.toJSON()
-            : null,
-        });
+        return worker
+          .worker({
+            config: test.context.config,
+            context: {
+              ...this._context,
+              changedFiles:
+                this._context.changedFiles &&
+                Array.from(this._context.changedFiles),
+            },
+            globalConfig: this._globalConfig,
+            path: test.path,
+            serializableModuleMap: watcher.isWatchMode()
+              ? test.context.moduleMap.toJSON()
+              : null,
+          })
+          .then(function(testResult) {
+            if (resultsCacheEntry.write) {
+              resultsCacheEntry.write(testResult);
+            }
+            return testResult;
+          });
       });
-
     const onError = async (err: SerializableError, test: JestTest) => {
       await onFailure(test, err);
       if (err.type === 'ProcessTerminatedError') {

@@ -5,7 +5,8 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-import {Arguments} from 'yargs';
+import { Arguments } from 'yargs';
+import { WasteNotConfig } from 'waste-not/dist/waste-not/lib/index';
 
 export type Path = string;
 
@@ -20,7 +21,7 @@ export type HasteConfig = {
   throwOnModuleCollision?: boolean;
 };
 
-export type ReporterConfig = [string, {[key: string]: unknown}];
+export type ReporterConfig = [string, { [key: string]: unknown }];
 
 export type ConfigGlobals = Record<string, any>;
 
@@ -38,13 +39,13 @@ export type DefaultOptions = {
   coveragePathIgnorePatterns: Array<string>;
   coverageReporters: Array<string>;
   coverageThreshold:
-    | {
-        global: {
-          [key: string]: number;
-        };
-      }
-    | null
-    | undefined;
+  | {
+    global: {
+      [key: string]: number;
+    };
+  }
+  | null
+  | undefined;
   cwd: Path;
   dependencyExtractor: string | null | undefined;
   errorOnDeprecated: boolean;
@@ -92,11 +93,11 @@ export type DefaultOptions = {
   testURL: string;
   timers: 'real' | 'fake';
   transform:
-    | {
-        [key: string]: string;
-      }
-    | null
-    | undefined;
+  | {
+    [key: string]: string;
+  }
+  | null
+  | undefined;
   transformIgnorePatterns: Array<Glob>;
   watchPathIgnorePatterns: Array<string>;
   useStderr: boolean;
@@ -240,11 +241,11 @@ export type GlobalConfig = {
   collectCoverage: boolean;
   collectCoverageFrom: Array<Glob>;
   collectCoverageOnlyFrom:
-    | {
-        [key: string]: boolean;
-      }
-    | null
-    | undefined;
+  | {
+    [key: string]: boolean;
+  }
+  | null
+  | undefined;
   coverageDirectory: string;
   coveragePathIgnorePatterns?: Array<string>;
   coverageReporters: Array<string>;
@@ -252,13 +253,13 @@ export type GlobalConfig = {
   detectLeaks: boolean;
   detectOpenHandles: boolean;
   enabledTestsMap:
-    | {
-        [key: string]: {
-          [key: string]: boolean;
-        };
-      }
-    | null
-    | undefined;
+  | {
+    [key: string]: {
+      [key: string]: boolean;
+    };
+  }
+  | null
+  | undefined;
   expand: boolean;
   extraGlobals: Array<string>;
   filter: Path | null | undefined;
@@ -296,16 +297,17 @@ export type GlobalConfig = {
   updateSnapshot: SnapshotUpdateState;
   useStderr: boolean;
   verbose: boolean | null | undefined;
+  wasteNotConfig: WasteNotConfig | null | undefined;
   watch: boolean;
   watchAll: boolean;
   watchman: boolean;
   watchPlugins:
-    | Array<{
-        path: string;
-        config: Record<string, any>;
-      }>
-    | null
-    | undefined;
+  | Array<{
+    path: string;
+    config: Record<string, any>;
+  }>
+  | null
+  | undefined;
 };
 
 export type ProjectConfig = {

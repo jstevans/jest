@@ -28,7 +28,8 @@
     "jest-util": "^24.5.0",
     "jest-worker": "^24.4.0",
     "source-map-support": "^0.5.6",
-    "throat": "^4.0.0"
+    "throat": "^4.0.0",
+    "waste-not": "^0.0.2"
   },
   "devDependencies": {
     "@types/exit": "^0.1.30",
