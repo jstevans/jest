@@ -8,6 +8,7 @@
 import type {Arguments} from 'yargs';
 import type {ReportOptions} from 'istanbul-reports';
 import chalk = require('chalk');
+import type {WasteNotConfig} from 'waste-not/dist/waste-not/lib/index';
 
 type CoverageProvider = 'babel' | 'v8';
 
@@ -290,6 +291,7 @@ export type GlobalConfig = {
   updateSnapshot: SnapshotUpdateState;
   useStderr: boolean;
   verbose?: boolean;
+  wasteNotConfig: WasteNotConfig | null | undefined;
   watch: boolean;
   watchAll: boolean;
   watchman: boolean;

@@ -23,7 +23,8 @@
     "@types/istanbul-lib-coverage": "^2.0.0",
     "@types/istanbul-reports": "^1.1.1",
     "@types/yargs": "^15.0.0",
-    "chalk": "^3.0.0"
+    "chalk": "^3.0.0",
+    "waste-not": "^0.0.2"
   },
   "devDependencies": {
     "@types/node": "*"
