@@ -162,6 +162,7 @@ const groupOptions = (
     updateSnapshot: options.updateSnapshot,
     useStderr: options.useStderr,
     verbose: options.verbose,
+    wasteNotConfig: options.wasteNotConfig,
     watch: options.watch,
     watchAll: options.watchAll,
     watchPlugins: options.watchPlugins,

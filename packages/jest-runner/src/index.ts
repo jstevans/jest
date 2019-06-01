@@ -27,8 +27,12 @@ import type {
   TestWatcher as JestTestWatcher,
   WatcherState,
 } from './types';
+import wastenot from 'waste-not/dist/waste-not/lib/index';
+import {Property} from 'waste-not/dist/cache/lib/types';
+import * as path from 'path';
 
 const TEST_WORKER_PATH = require.resolve('./testWorker');
+const CACHE_PROPERTY_KEY = 'JEST_TEST_RESULTS';
 
 interface WorkerInterface extends Worker {
   worker: typeof worker;
@@ -70,14 +74,31 @@ class TestRunner {
     onFailure: JestOnTestFailure | undefined,
     options: JestTestRunnerOptions,
   ): Promise<void> {
+    const {wasteNotConfig: wnConfig} = this._globalConfig;
+    const resultCache = await (wnConfig ? wastenot(wnConfig) : wastenot());
+
+    const getCachedResults = (filePath: string) => {
+      return resultCache(path.relative(process.cwd(), path.resolve(filePath)))<
+        TestResult
+      >(CACHE_PROPERTY_KEY, {transitive: true});
+    };
+
     return await (options.serial
-      ? this._createInBandTestRun(tests, watcher, onStart, onResult, onFailure)
+      ? this._createInBandTestRun(
+          tests,
+          watcher,
+          onStart,
+          onResult,
+          onFailure,
+          getCachedResults,
+        )
       : this._createParallelTestRun(
           tests,
           watcher,
           onStart,
           onResult,
           onFailure,
+          getCachedResults,
         ));
   }
 
@@ -87,6 +108,7 @@ class TestRunner {
     onStart?: JestOnTestStart,
     onResult?: JestOnTestSuccess,
     onFailure?: JestOnTestFailure,
+    resultCache: (path: string) => Property<JestTestResult>,
   ) {
     process.env.JEST_WORKER_ID = '1';
     const mutex = throat(1);
@@ -99,6 +121,18 @@ class TestRunner {
                 throw new CancelRun();
               }
               let sendMessageToJest: JestTestFileEvent;
+
+              const resultsCacheEntry = resultCache(test.path);
+
+              const useCachedResult =
+                resultsCacheEntry.read &&
+                (resultsCacheEntry.isDirty && !resultsCacheEntry.isDirty());
+
+              const cachedResults =
+                useCachedResult && resultsCacheEntry.read!();
+              if (cachedResults) {
+                return Promise.resolve(cachedResults);
+              }
 
               // Remove `if(onStart)` in Jest 27
               if (onStart) {
@@ -131,6 +165,10 @@ class TestRunner {
               }
             })
             .then(result => {
+              const resultsCacheEntry = resultCache(test.path);
+              if(resultsCacheEntry.write) {
+                resultsCacheEntry.write(result);
+              }
               if (onResult) {
                 return onResult(test, result);
               } else {
@@ -158,6 +196,7 @@ class TestRunner {
     onStart?: JestOnTestStart,
     onResult?: JestOnTestSuccess,
     onFailure?: JestOnTestFailure,
+    resultCache: (path: string) => Property<JestTestResult>,
   ) {
     const resolvers: Map<string, SerializableResolver> = new Map();
     for (const test of tests) {
@@ -194,6 +233,17 @@ class TestRunner {
           return Promise.reject();
         }
 
+        const resultsCacheEntry = resultCache(test.path);
+
+        const useCachedResult =
+          resultsCacheEntry.read &&
+          (!resultsCacheEntry.isDirty || !resultsCacheEntry.isDirty());
+
+        const cachedResults = useCachedResult && resultsCacheEntry.read!();
+        if (cachedResults) {
+          return cachedResults;
+        }
+
         // Remove `if(onStart)` in Jest 27
         if (onStart) {
           await onStart(test);
@@ -214,6 +264,11 @@ class TestRunner {
           },
           globalConfig: this._globalConfig,
           path: test.path,
+        }).then(function(testResult) {
+          if (resultsCacheEntry.write) {
+            resultsCacheEntry.write(testResult);
+          }
+          return testResult;
         }) as PromiseWithCustomMessage<TestResult>;
 
         if (promise.UNSTABLE_onCustomMessage) {
@@ -225,7 +280,6 @@ class TestRunner {
 
         return promise;
       });
-
     const onError = async (err: SerializableError, test: JestTest) => {
       // Remove `if(onFailure)` in Jest 27
       if (onFailure) {

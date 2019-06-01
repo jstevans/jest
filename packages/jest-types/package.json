@@ -17,7 +17,8 @@
     "@types/istanbul-reports": "^1.1.1",
     "@types/node": "*",
     "@types/yargs": "^15.0.0",
-    "chalk": "^4.0.0"
+    "chalk": "^4.0.0",
+    "waste-not": "^0.0.2"
   },
   "publishConfig": {
     "access": "public"

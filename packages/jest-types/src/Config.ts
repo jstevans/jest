@@ -8,6 +8,7 @@
 import type {Arguments} from 'yargs';
 import type {ReportOptions} from 'istanbul-reports';
 import type {ForegroundColor} from 'chalk';
+import { WasteNotConfig } from 'waste-not/dist/waste-not/lib/index';
 
 type CoverageProvider = 'babel' | 'v8';
 
@@ -55,6 +56,7 @@ export type DefaultOptions = {
   coveragePathIgnorePatterns: Array<string>;
   coverageReporters: Array<CoverageReporterName>;
   coverageProvider: CoverageProvider;
+  dependencyExtractor: string | null | undefined;
   errorOnDeprecated: boolean;
   expand: boolean;
   forceCoverageMatch: Array<Glob>;
@@ -129,7 +131,6 @@ export type InitialOptions = Partial<{
       [key: string]: number;
     };
   };
-  dependencyExtractor: string;
   detectLeaks: boolean;
   detectOpenHandles: boolean;
   displayName: string | DisplayName;
@@ -301,6 +302,7 @@ export type GlobalConfig = {
   updateSnapshot: SnapshotUpdateState;
   useStderr: boolean;
   verbose?: boolean;
+  wasteNotConfig: WasteNotConfig | null | undefined;
   watch: boolean;
   watchAll: boolean;
   watchman: boolean;
